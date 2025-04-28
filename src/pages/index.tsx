@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-// FlipCard component
+// FlipCard component for each table cell
 function FlipCard({
   subject,
   question,
@@ -12,11 +12,11 @@ function FlipCard({
   question: string;
   value: number;
 }) {
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = useState(true);
 
   const cardStyle: React.CSSProperties = {
-    width: "250px",
-    height: "150px",
+    width: "150px",
+    height: "100px",
     perspective: "1000px",
     marginTop: "8px",
     cursor: "pointer",
@@ -40,7 +40,7 @@ function FlipCard({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "10px",
-    fontSize: "16px",
+    fontSize: "14px",
     padding: "10px",
     textAlign: "center",
     color: "#fff",
@@ -69,6 +69,7 @@ function FlipCard({
         <div style={backStyle}>
           <div>
             <p>الدرجة: {value}</p>
+            <p>معلومات إضافية أو إجابة</p>
           </div>
         </div>
       </div>
@@ -76,7 +77,7 @@ function FlipCard({
   );
 }
 
-// Main component
+// Main component with table layout and column headers
 export default function Index() {
   const subjects = [
     "التربية الإسلامية",
@@ -98,24 +99,28 @@ export default function Index() {
   ];
 
   return (
-    <div dir="rtl" style={{ padding: 24 }}>
-      <table border={1} cellPadding={10}>
+    <div style={{ padding: "20px", direction: "rtl" }}>
+      <table style={tableStyle}>
         <thead>
           <tr>
-            {subjects.map((subj, i) => (
-              <th key={i}>{subj}</th>
+            <th style={subjectCellStyle}>الموضوع</th>
+            {questions.map((question, idx) => (
+              <th key={idx} style={tableHeaderStyle}>
+                {question}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {scores.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((score, colIndex) => (
-                <td key={colIndex}>
+          {subjects.map((subject, colIndex) => (
+            <tr key={colIndex}>
+              <td style={subjectCellStyle}>{subject}</td>
+              {questions.map((question, rowIndex) => (
+                <td key={rowIndex} style={tableCellStyle}>
                   <FlipCard
-                    subject={subjects[colIndex]}
-                    question={questions[rowIndex]}
-                    value={score}
+                    subject={subject}
+                    question={question}
+                    value={scores[colIndex][rowIndex]}
                   />
                 </td>
               ))}
@@ -126,3 +131,35 @@ export default function Index() {
     </div>
   );
 }
+
+// Styles
+const tableStyle: React.CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  marginTop: "20px",
+};
+
+const tableHeaderStyle: React.CSSProperties = {
+  border: "1px solid #ddd",
+  padding: "8px",
+  textAlign: "center",
+  backgroundColor: "#6A2C70",
+  color: "#fff",
+};
+
+const tableCellStyle: React.CSSProperties = {
+  border: "1px solid #ddd",
+  padding: "8px",
+  textAlign: "center",
+  backgroundColor: "#c4c4c4",
+  color: "#fff",
+};
+
+const subjectCellStyle: React.CSSProperties = {
+  border: "1px solid #ddd",
+  padding: "8px",
+  textAlign: "center",
+  backgroundColor: "#90ee90", // أخضر فاتح
+  color: "#000", // نص أسود أوضح
+  fontWeight: "bold",
+};
