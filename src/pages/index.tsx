@@ -2,24 +2,26 @@
 
 import React, { useState } from "react";
 
-// FlipCard component for each table cell
 function FlipCard({
   subject,
   question,
   value,
+  onShowAnswer,
+  disabled,
 }: {
   subject: string;
   question: string;
   value: number;
+  onShowAnswer: () => void;
+  disabled: boolean;
 }) {
-  const [flipped, setFlipped] = useState(true);
-
   const cardStyle: React.CSSProperties = {
     width: "150px",
     height: "100px",
     perspective: "1000px",
     marginTop: "8px",
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
   };
 
   const cardInnerStyle: React.CSSProperties = {
@@ -28,7 +30,7 @@ function FlipCard({
     position: "relative",
     transformStyle: "preserve-3d",
     transition: "transform 0.6s",
-    transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+    transform: disabled ? "rotateY(180deg)" : "rotateY(0deg)",
   };
 
   const cardFaceStyle: React.CSSProperties = {
@@ -58,26 +60,42 @@ function FlipCard({
   };
 
   return (
-    <div style={cardStyle} onClick={() => setFlipped(!flipped)}>
+    <div style={cardStyle}>
       <div style={cardInnerStyle}>
         <div style={frontStyle}>
           <div>
             <strong>{subject}</strong>
-            <p>{question}</p>
           </div>
         </div>
-        <div style={backStyle}>
-          <div>
-            <p>الدرجة: {value}</p>
-            <p>معلومات إضافية أو إجابة</p>
+        {disabled && (
+          <div style={backStyle}>
+            <div>
+              <p>تم عرض الإجابة</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
+      <button
+        onClick={onShowAnswer}
+        disabled={disabled}
+        style={{
+          marginTop: "5px",
+          width: "100%",
+          backgroundColor: "#F08A5D",
+          color: "white",
+          border: "none",
+          borderRadius: "5px",
+          padding: "5px",
+          cursor: disabled ? "not-allowed" : "pointer",
+          fontSize: "12px",
+        }}
+      >
+        عرض الإجابة
+      </button>
     </div>
   );
 }
 
-// Main component with table layout and column headers
 export default function Index() {
   const subjects = [
     "التربية الإسلامية",
@@ -86,10 +104,10 @@ export default function Index() {
     "العلوم",
   ];
   const questions = [
-    "السؤال الأول",
-    "السؤال الثاني",
-    "السؤال الثالث",
-    "السؤال الرابع",
+    { q: "ما هو عدد أركان الإسلام؟" },
+    { q: "ما هي عاصمة الأردن؟" },
+    { q: "ما هو ناتج 5 × 6؟" },
+    { q: "ما هي حالات المادة؟" },
   ];
   const scores = [
     [10, 10, 10, 10],
@@ -98,15 +116,61 @@ export default function Index() {
     [40, 40, 40, 40],
   ];
 
+  const [playerOneScore, setPlayerOneScore] = useState(0);
+  const [playerTwoScore, setPlayerTwoScore] = useState(0);
+  const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
+  const [disabledCards, setDisabledCards] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  function handleShowAnswer(subject: string, question: string, value: number) {
+    // عرض الإجابة
+    const isCorrect = confirm(
+      `السؤال: ${question}\n\nالإجابة الصحيحة: (أدخل هنا الإجابة النموذجية)\n\nهل أجبت بشكل صحيح؟`
+    );
+
+    if (isCorrect) {
+      if (currentPlayer === 1) {
+        setPlayerOneScore((prev) => prev + value);
+      } else {
+        setPlayerTwoScore((prev) => prev + value);
+      }
+    }
+
+    setDisabledCards((prev) => ({
+      ...prev,
+      [`${subject}-${question}`]: true,
+    }));
+
+    // تبديل اللاعب
+    setCurrentPlayer((prev) => (prev === 1 ? 2 : 1));
+  }
+
+  function finishGame() {
+    let winner = "تعادل!";
+    if (playerOneScore > playerTwoScore) {
+      winner = "اللاعب الأول فاز!";
+    } else if (playerTwoScore > playerOneScore) {
+      winner = "اللاعب الثاني فاز!";
+    }
+    alert(
+      `اللعبة انتهت!\nالنتيجة:\n${winner}\n\nPlayer 1: ${playerOneScore} نقطة\nPlayer 2: ${playerTwoScore} نقطة`
+    );
+  }
+
   return (
     <div style={{ padding: "20px", direction: "rtl" }}>
+      <h2>
+        الدور الحالي: {currentPlayer === 1 ? "اللاعب الأول" : "اللاعب الثاني"}
+      </h2>
+
       <table style={tableStyle}>
         <thead>
           <tr>
             <th style={subjectCellStyle}>الموضوع</th>
             {questions.map((question, idx) => (
               <th key={idx} style={tableHeaderStyle}>
-                {question}
+                السؤال {idx + 1}
               </th>
             ))}
           </tr>
@@ -115,19 +179,50 @@ export default function Index() {
           {subjects.map((subject, colIndex) => (
             <tr key={colIndex}>
               <td style={subjectCellStyle}>{subject}</td>
-              {questions.map((question, rowIndex) => (
-                <td key={rowIndex} style={tableCellStyle}>
-                  <FlipCard
-                    subject={subject}
-                    question={question}
-                    value={scores[colIndex][rowIndex]}
-                  />
-                </td>
-              ))}
+              {questions.map((question, rowIndex) => {
+                const key = `${subject}-${question.q}`;
+                return (
+                  <td key={rowIndex} style={tableCellStyle}>
+                    <FlipCard
+                      subject={subject}
+                      question={question.q}
+                      value={scores[colIndex][rowIndex]}
+                      onShowAnswer={() =>
+                        handleShowAnswer(
+                          subject,
+                          question.q,
+                          scores[colIndex][rowIndex]
+                        )
+                      }
+                      disabled={disabledCards[key] || false}
+                    />
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
       </table>
+
+      <button
+        onClick={finishGame}
+        style={{
+          marginTop: "20px",
+          backgroundColor: "#6A2C70",
+          color: "#fff",
+          border: "none",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          cursor: "pointer",
+        }}
+      >
+        إنهاء اللعبة
+      </button>
+
+      <div style={{ marginTop: "20px" }}>
+        <p>نقاط اللاعب الأول: {playerOneScore}</p>
+        <p>نقاط اللاعب الثاني: {playerTwoScore}</p>
+      </div>
     </div>
   );
 }
@@ -159,7 +254,7 @@ const subjectCellStyle: React.CSSProperties = {
   border: "1px solid #ddd",
   padding: "8px",
   textAlign: "center",
-  backgroundColor: "#90ee90", // أخضر فاتح
-  color: "#000", // نص أسود أوضح
+  backgroundColor: "#90ee90",
+  color: "#000",
   fontWeight: "bold",
 };
