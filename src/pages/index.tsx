@@ -6,22 +6,24 @@ function FlipCard({
   subject,
   question,
   value,
-  onShowAnswer,
-  disabled,
+  onShowQuestion,
+  isQuestionVisible,
+  isSelected,
 }: {
   subject: string;
   question: string;
   value: number;
-  onShowAnswer: () => void;
-  disabled: boolean;
+  onShowQuestion: () => void;
+  isQuestionVisible: boolean;
+  isSelected: boolean;
 }) {
   const cardStyle: React.CSSProperties = {
     width: "150px",
     height: "100px",
     perspective: "1000px",
     marginTop: "8px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.6 : 1,
+    cursor: "pointer",
+    border: isSelected ? "2px solid #F08A5D" : "none",
   };
 
   const cardInnerStyle: React.CSSProperties = {
@@ -30,7 +32,7 @@ function FlipCard({
     position: "relative",
     transformStyle: "preserve-3d",
     transition: "transform 0.6s",
-    transform: disabled ? "rotateY(180deg)" : "rotateY(0deg)",
+    transform: isQuestionVisible ? "rotateY(180deg)" : "rotateY(0deg)",
   };
 
   const cardFaceStyle: React.CSSProperties = {
@@ -60,38 +62,19 @@ function FlipCard({
   };
 
   return (
-    <div style={cardStyle}>
+    <div style={cardStyle} onClick={onShowQuestion}>
       <div style={cardInnerStyle}>
         <div style={frontStyle}>
           <div>
             <strong>{subject}</strong>
           </div>
         </div>
-        {disabled && (
-          <div style={backStyle}>
-            <div>
-              <p>تم عرض الإجابة</p>
-            </div>
+        <div style={backStyle}>
+          <div>
+            <p>{question}</p>
           </div>
-        )}
+        </div>
       </div>
-      <button
-        onClick={onShowAnswer}
-        disabled={disabled}
-        style={{
-          marginTop: "5px",
-          width: "100%",
-          backgroundColor: "#F08A5D",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          padding: "5px",
-          cursor: disabled ? "not-allowed" : "pointer",
-          fontSize: "12px",
-        }}
-      >
-        عرض الإجابة
-      </button>
     </div>
   );
 }
@@ -104,10 +87,10 @@ export default function Index() {
     "العلوم",
   ];
   const questions = [
-    { q: "ما هو عدد أركان الإسلام؟" },
-    { q: "ما هي عاصمة الأردن؟" },
-    { q: "ما هو ناتج 5 × 6؟" },
-    { q: "ما هي حالات المادة؟" },
+    { q: "ما هو عدد أركان الإسلام؟", answer: "خمسة" },
+    { q: "ما هي عاصمة الأردن؟", answer: "عمان" },
+    { q: "ما هو ناتج 5 × 6؟", answer: "30" },
+    { q: "ما هي حالات المادة؟", answer: "صلبة، سائلة، غازية" },
   ];
   const scores = [
     [10, 10, 10, 10],
@@ -119,14 +102,46 @@ export default function Index() {
   const [playerOneScore, setPlayerOneScore] = useState(0);
   const [playerTwoScore, setPlayerTwoScore] = useState(0);
   const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
-  const [disabledCards, setDisabledCards] = useState<{
+  const [visibleQuestions, setVisibleQuestions] = useState<{
     [key: string]: boolean;
   }>({});
+  const [answeredCards, setAnsweredCards] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
-  function handleShowAnswer(subject: string, question: string, value: number) {
-    // عرض الإجابة
+  const currentQuestion = selectedCard
+    ? questions.find((q) => q.q === selectedCard.split("-")[1])?.q
+    : null;
+  const currentValue = selectedCard
+    ? scores[subjects.indexOf(selectedCard.split("-")[0])][
+        questions.findIndex((q) => q.q === selectedCard.split("-")[1])
+      ]
+    : 0;
+
+  function handleShowQuestion(subject: string, question: string) {
+    const key = `${subject}-${question}`;
+    setVisibleQuestions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+    setSelectedCard(key);
+  }
+
+  function handleShowAnswer() {
+    if (!selectedCard) {
+      return; // Should not happen if button is disabled correctly
+    }
+    const [subject, question] = selectedCard.split("-");
+    const value =
+      scores[subjects.indexOf(subject)][
+        questions.findIndex((q) => q.q === question)
+      ];
+
     const isCorrect = confirm(
-      `السؤال: ${question}\n\nالإجابة الصحيحة: (أدخل هنا الإجابة النموذجية)\n\nهل أجبت بشكل صحيح؟`
+      `السؤال: ${question}\n\nالإجابة الصحيحة: ${
+        questions.find((q) => q.q === question)?.answer
+      }\n\nهل أجبت بشكل صحيح؟`
     );
 
     if (isCorrect) {
@@ -137,10 +152,15 @@ export default function Index() {
       }
     }
 
-    setDisabledCards((prev) => ({
+    setAnsweredCards((prev) => ({
       ...prev,
-      [`${subject}-${question}`]: true,
+      [selectedCard]: true,
     }));
+    setVisibleQuestions((prev) => ({
+      ...prev,
+      [selectedCard]: true, // Keep the card flipped
+    }));
+    setSelectedCard(null); // Reset selected card after answering
 
     // تبديل اللاعب
     setCurrentPlayer((prev) => (prev === 1 ? 2 : 1));
@@ -168,7 +188,7 @@ export default function Index() {
         <thead>
           <tr>
             <th style={subjectCellStyle}>الموضوع</th>
-            {questions.map((question, idx) => (
+            {questions.map((_, idx) => (
               <th key={idx} style={tableHeaderStyle}>
                 السؤال {idx + 1}
               </th>
@@ -179,22 +199,18 @@ export default function Index() {
           {subjects.map((subject, colIndex) => (
             <tr key={colIndex}>
               <td style={subjectCellStyle}>{subject}</td>
-              {questions.map((question, rowIndex) => {
-                const key = `${subject}-${question.q}`;
+              {questions.map((questionObj, rowIndex) => {
+                const key = `${subject}-${questionObj.q}`;
+                const isCardSelected = selectedCard === key;
                 return (
                   <td key={rowIndex} style={tableCellStyle}>
                     <FlipCard
                       subject={subject}
-                      question={question.q}
+                      question={questionObj.q}
                       value={scores[colIndex][rowIndex]}
-                      onShowAnswer={() =>
-                        handleShowAnswer(
-                          subject,
-                          question.q,
-                          scores[colIndex][rowIndex]
-                        )
-                      }
-                      disabled={disabledCards[key] || false}
+                      onShowQuestion={() => handleShowQuestion(subject, questionObj.q)}
+                      isQuestionVisible={visibleQuestions[key] || false}
+                      isSelected={isCardSelected}
                     />
                   </td>
                 );
@@ -203,6 +219,25 @@ export default function Index() {
           ))}
         </tbody>
       </table>
+
+      <button
+        onClick={handleShowAnswer}
+        disabled={!selectedCard || answeredCards[selectedCard]}
+        style={{
+          marginTop: "20px",
+          backgroundColor: selectedCard && !answeredCards[selectedCard] ? "#F08A5D" : "#ccc",
+          color: "white",
+          border: "none",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          cursor: selectedCard && !answeredCards[selectedCard] ? "pointer" : "not-allowed",
+          fontSize: "16px",
+        }}
+      >
+        {selectedCard && !answeredCards[selectedCard]
+          ? "عرض الإجابة"
+          : "اختر بطاقة"}
+      </button>
 
       <button
         onClick={finishGame}
@@ -214,6 +249,7 @@ export default function Index() {
           padding: "10px 20px",
           borderRadius: "8px",
           cursor: "pointer",
+          marginLeft: "10px",
         }}
       >
         إنهاء اللعبة
@@ -246,15 +282,13 @@ const tableCellStyle: React.CSSProperties = {
   border: "1px solid #ddd",
   padding: "8px",
   textAlign: "center",
-  backgroundColor: "#c4c4c4",
-  color: "#fff",
+  backgroundColor: "#f9f9f9",
 };
 
 const subjectCellStyle: React.CSSProperties = {
   border: "1px solid #ddd",
   padding: "8px",
   textAlign: "center",
-  backgroundColor: "#90ee90",
-  color: "#000",
+  backgroundColor: "#e0f7fa",
   fontWeight: "bold",
 };
